@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dispute Tracker — Payments Risk & Recovery</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --sidebar: #14213d;
+    --sidebar-hover: #1c2d54;
+    --panel: #ffffff;
+    --border: #e3e6eb;
+    --ink: #1a1d29;
+    --muted: #6b7280;
+    --blue: #2354e6;
+    --blue-pale: #eaf0fe;
+    --good: #16794f;
+    --good-bg: #e7f6ee;
+    --bad: #c02b2b;
+    --bad-bg: #fbeaea;
+    --warn: #a15c00;
+    --warn-bg: #fdf1de;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Inter", -apple-system, "Segoe UI", sans-serif; font-size: 14px; }
+  .shell { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: var(--sidebar); color: #fff; flex-shrink: 0; padding: 22px 0; }
+  .sidebar .brand { padding: 0 20px 22px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+  .sidebar .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: #4f8bff; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 1px; padding: 0 10px; }
+  .sidebar nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 6px; color: #b7c0d8;
+    font-size: 13px; cursor: pointer; text-decoration: none; font-weight: 500;
+  }
+  .sidebar nav a .ic { width: 15px; text-align: center; font-size: 13px; opacity: .8; }
+  .sidebar nav a:hover { background: var(--sidebar-hover); color: #fff; }
+  .sidebar nav a.active { background: var(--sidebar-hover); color: #fff; }
+  .sidebar nav a.active .ic { color: #4f8bff; }
+  .sidebar .section-label { padding: 16px 22px 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #6b7593; font-weight: 600; }
+
+  /* Main */
+  .main { flex: 1; min-width: 0; }
+  .topbar {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 14px 28px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .topbar h1 { font-size: 17px; margin: 0; font-weight: 700; }
+  .topbar .path { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .topbar .user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+  .content { padding: 24px 28px 60px; }
+
+  .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .metric-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; }
+  .metric-card .top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .metric-card .num { font-size: 22px; font-weight: 700; color: var(--ink); margin-top: 6px; }
+  .metric-card .label { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .metric-card .badge { font-size: 10px; padding: 2px 7px; border-radius: 9px; font-weight: 700; }
+  .metric-card.warn .num { color: var(--warn); }
+  .metric-card.bad .num { color: var(--bad); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head h2 { font-size: 13.5px; margin: 0; font-weight: 700; }
+  .panel-head .count { font-size: 11.5px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 9px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 9px 18px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; background: #fafbfc; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 18px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.clickable { cursor: pointer; transition: background .1s ease; }
+  tr.clickable:hover { background: #fafbfd; }
+  .dealer-name { font-weight: 600; }
+  .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
+  .pill.filed { background: var(--blue-pale); color: var(--blue); } .pill.filed::before { background: var(--blue); }
+  .pill.evidence { background: var(--warn-bg); color: var(--warn); } .pill.evidence::before { background: var(--warn); }
+  .pill.review { background: var(--warn-bg); color: var(--warn); } .pill.review::before { background: var(--warn); }
+  .pill.won { background: var(--good-bg); color: var(--good); } .pill.won::before { background: var(--good); }
+  .pill.lost { background: var(--bad-bg); color: var(--bad); } .pill.lost::before { background: var(--bad); }
+
+  .rec-tag { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
+  .rec-tag.contest { background: var(--good-bg); color: var(--good); }
+  .rec-tag.concede { background: var(--bad-bg); color: var(--bad); }
+  .rec-tag .ev { font-weight: 500; opacity: .85; margin-left: 2px; }
+
+  .detail-panel { margin-top: 16px; }
+  .detail-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+  .detail-head h3 { margin: 0 0 3px; font-size: 15px; }
+  .detail-head .sub { color: var(--muted); font-size: 12.5px; }
+  .icon-btn { background: none; border: 1px solid var(--border); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .icon-btn:hover { background: var(--bg); }
+
+  .math-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .math-block { padding: 18px 20px; }
+  .math-block:first-child { border-right: 1px solid var(--border); }
+  .math-block h4 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+  .math-line { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .math-line.total { font-weight: 700; border-bottom: none; padding-top: 12px; font-size: 13.5px; }
+  .math-line .neg { color: var(--bad); font-variant-numeric: tabular-nums; }
+  .math-line .pos { color: var(--good); font-variant-numeric: tabular-nums; }
+  .verdict { margin: 0 20px 18px; padding: 12px 14px; background: var(--bg); border-radius: 6px; font-size: 12.5px; color: var(--ink); border-left: 3px solid var(--blue); }
+
+  .recon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .recon-row { display: flex; justify-content: space-between; padding: 10px 18px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .recon-row:last-child { border-bottom: none; }
+  .recon-row.mismatch { background: var(--bad-bg); }
+  .recon-row.mismatch span:last-child { color: var(--bad); font-weight: 700; }
+  .recon-summary { grid-column: 1 / -1; background: var(--warn-bg); border: 1px solid #eddab3; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--warn); line-height: 1.5; }
+  .recon-summary strong { color: #7a4600; }
+
+  .note { font-size: 11.5px; color: var(--muted); margin-top: 14px; padding: 10px 14px; background: #fafbfc; border: 1px dashed var(--border); border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> Payments Ops</div>
+    <div class="section-label">Workspace</div>
+    <nav>
+      <a class="tab-btn active" data-view="disputes"><span class="ic">&#9632;</span> Disputes</a>
+      <a class="tab-btn" data-view="recon"><span class="ic">&#8942;</span> Reconciliation</a>
+    </nav>
+    <div class="section-label">Reference</div>
+    <nav>
+      <a><span class="ic">&#9678;</span> Reason codes</a>
+      <a><span class="ic">&#9678;</span> Dealer accounts</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="pageTitle">Disputes</h1>
+        <div class="path" id="pagePath">Payments Ops / Disputes</div>
+      </div>
+      <div class="user"><div class="avatar">AY</div> Anuj Yadav</div>
+    </div>
+
+    <div class="content">
+      <section class="view active" id="view-disputes">
+        <div class="metric-row" id="metricRow"></div>
+        <div class="panel">
+          <div class="panel-head"><h2>Open &amp; recent disputes</h2><span class="count" id="rowCount"></span></div>
+          <table>
+            <thead>
+              <tr><th>Dealer</th><th>Amount</th><th>Reason</th><th>Status</th><th>Days open</th><th>Recommendation</th></tr>
+            </thead>
+            <tbody id="disputeBody"></tbody>
+          </table>
+        </div>
+        <div id="detailArea"></div>
+        <div class="note">Win probability by reason code is a base-rate assumption (shown in the model below) — in production this would be trained on historical outcomes. Expected value accounts for contest cost and a representment fee charged when a contested dispute is lost.</div>
+      </section>
+
+      <section class="view" id="view-recon">
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel-head"><h2>Settlement reconciliation — current period</h2></div>
+        </div>
+        <div class="recon-grid" id="reconGrid"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const REASON_CODES = {
+  "Service not rendered": { winRate: 0.58, contestCost: 35 },
+  "Duplicate charge": { winRate: 0.91, contestCost: 15 },
+  "Fraud claim": { winRate: 0.19, contestCost: 55 },
+  "Customer dissatisfaction": { winRate: 0.38, contestCost: 30 },
+  "Amount mismatch": { winRate: 0.82, contestCost: 18 }
+};
+const REPRESENTMENT_FEE = 35;
+
+const DISPUTES = [
+  { id: "D-2291", dealer: "Coastal Toyota", amount: 842, reason: "Service not rendered", status: "review", daysOpen: 6 },
+  { id: "D-2288", dealer: "Midtown Honda", amount: 214, reason: "Duplicate charge", status: "evidence", daysOpen: 3 },
+  { id: "D-2276", dealer: "Northgate Ford", amount: 310, reason: "Fraud claim", status: "review", daysOpen: 11 },
+  { id: "D-2270", dealer: "Coastal Toyota", amount: 95, reason: "Customer dissatisfaction", status: "filed", daysOpen: 2 },
+  { id: "D-2255", dealer: "Riverside Nissan", amount: 128, reason: "Amount mismatch", status: "won", daysOpen: 14 },
+  { id: "D-2251", dealer: "Midtown Honda", amount: 975, reason: "Fraud claim", status: "lost", daysOpen: 19 },
+  { id: "D-2247", dealer: "Northgate Ford", amount: 310, reason: "Duplicate charge", status: "won", daysOpen: 9 },
+  { id: "D-2240", dealer: "Riverside Nissan", amount: 660, reason: "Service not rendered", status: "evidence", daysOpen: 5 },
+];
+
+function computeEV(d) {
+  const rc = REASON_CODES[d.reason];
+  const evContest = rc.winRate * (-rc.contestCost) + (1 - rc.winRate) * (-d.amount - rc.contestCost - REPRESENTMENT_FEE);
+  const evConcede = -d.amount;
+  return { evContest, evConcede, recommend: evContest > evConcede ? "contest" : "concede", rc };
+}
+
+function statusPill(status) {
+  const map = { filed: "Filed", evidence: "Evidence submitted", review: "Under review", won: "Won", lost: "Lost" };
+  return `<span class="pill ${status}">${map[status]}</span>`;
+}
+
+function initials(name) { return name.split(" ").map(w=>w[0]).slice(0,2).join(""); }
+
+function renderMetrics() {
+  const open = DISPUTES.filter(d => !["won","lost"].includes(d.status));
+  const totalAtRisk = open.reduce((s,d) => s + d.amount, 0);
+  const expectedLoss = open.reduce((s,d) => {
+    const { evContest, evConcede } = computeEV(d);
+    return s + (-Math.max(evContest, evConcede));
+  }, 0);
+  const closed = DISPUTES.filter(d => ["won","lost"].includes(d.status));
+  const winRate = closed.length ? Math.round(100 * closed.filter(d=>d.status==="won").length / closed.length) : 0;
+
+  document.getElementById("metricRow").innerHTML = `
+    <div class="metric-card"><div class="top"><span class="label">Open disputes</span></div><div class="num">${open.length}</div></div>
+    <div class="metric-card warn"><div class="top"><span class="label">Amount at risk</span></div><div class="num">$${totalAtRisk.toLocaleString()}</div></div>
+    <div class="metric-card bad"><div class="top"><span class="label">Risk-weighted expected loss</span></div><div class="num">$${Math.round(expectedLoss).toLocaleString()}</div></div>
+    <div class="metric-card"><div class="top"><span class="label">Win rate, closed cases</span></div><div class="num">${winRate}%</div></div>
+  `;
+  document.getElementById("rowCount").textContent = `${DISPUTES.length} total`;
+}
+
+function renderTable() {
+  document.getElementById("disputeBody").innerHTML = DISPUTES.map(d => {
+    const { evContest, recommend } = computeEV(d);
+    const isOpen = !["won","lost"].includes(d.status);
+    return `
+      <tr class="clickable" data-id="${d.id}">
+        <td class="dealer-name">${d.dealer}</td>
+        <td class="amount">$${d.amount.toLocaleString()}</td>
+        <td>${d.reason}</td>
+        <td>${statusPill(d.status)}</td>
+        <td>${d.daysOpen}</td>
+        <td>${isOpen ? `<span class="rec-tag ${recommend}">${recommend === "contest" ? "Contest" : "Concede"}<span class="ev">EV ${evContest>=0?'+':'–'}$${Math.abs(Math.round(evContest))}</span></span>` : "—"}</td>
+      </tr>`;
+  }).join("");
+  document.querySelectorAll("tr.clickable").forEach(row => row.addEventListener("click", () => showDetail(row.dataset.id)));
+}
+
+function showDetail(id) {
+  const d = DISPUTES.find(x => x.id === id);
+  const { evContest, evConcede, recommend, rc } = computeEV(d);
+  document.getElementById("detailArea").innerHTML = `
+    <div class="panel detail-panel">
+      <div class="detail-head">
+        <div>
+          <h3>${d.id} — ${d.dealer}</h3>
+          <div class="sub">${d.reason} · $${d.amount.toLocaleString()} · ${d.daysOpen} days open · ${statusPill(d.status)}</div>
+        </div>
+        <button class="icon-btn" onclick="document.getElementById('detailArea').innerHTML=''">&times;</button>
+      </div>
+      <div class="math-grid">
+        <div class="math-block">
+          <h4>If we contest</h4>
+          <div class="math-line"><span>Win probability (reason-code base rate)</span><span>${Math.round(rc.winRate*100)}%</span></div>
+          <div class="math-line"><span>Cost to contest</span><span class="neg">–$${rc.contestCost}</span></div>
+          <div class="math-line"><span>If lost: amount + representment fee</span><span class="neg">–$${d.amount.toLocaleString()} + $${REPRESENTMENT_FEE}</span></div>
+          <div class="math-line total"><span>Expected value</span><span class="${evContest>=0?'pos':'neg'}">${evContest>=0?'+':'–'}$${Math.abs(Math.round(evContest)).toLocaleString()}</span></div>
+        </div>
+        <div class="math-block">
+          <h4>If we concede</h4>
+          <div class="math-line"><span>Amount written off</span><span class="neg">–$${d.amount.toLocaleString()}</span></div>
+          <div class="math-line"><span>Contest cost avoided</span><span class="pos">+$0</span></div>
+          <div class="math-line total"><span>Expected value</span><span class="neg">–$${d.amount.toLocaleString()}</span></div>
+        </div>
+      </div>
+      <div class="verdict">Recommendation: <strong>${recommend === "contest" ? "Contest this dispute" : "Concede"}</strong> — ${recommend === "contest" ? "expected value of contesting is higher even accounting for the representment fee if we lose" : "expected cost of contesting, including the representment fee if we lose, exceeds simply writing off the amount"}, based on the ${Math.round(rc.winRate*100)}% historical win rate for "${d.reason}" disputes.</div>
+    </div>
+  `;
+}
+
+const SETTLEMENT_DATA = [
+  { dealer: "Coastal Toyota", processor: 18420, ledger: 18420 },
+  { dealer: "Midtown Honda", processor: 14210, ledger: 13996 },
+  { dealer: "Northgate Ford", processor: 21870, ledger: 21870 },
+  { dealer: "Riverside Nissan", processor: 9640, ledger: 9512 }
+];
+
+function renderRecon() {
+  const mismatches = SETTLEMENT_DATA.filter(r => r.processor !== r.ledger);
+  const totalDiff = mismatches.reduce((s,r) => s + (r.processor - r.ledger), 0);
+  document.getElementById("reconGrid").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h2>Processor settlement report</h2></div>
+      ${SETTLEMENT_DATA.map(r => `<div class="recon-row"><span>${r.dealer}</span><span class="amount">$${r.processor.toLocaleString()}</span></div>`).join("")}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Dealer accounting ledger</h2></div>
+      ${SETTLEMENT_DATA.map(r => {
+        const mismatch = r.processor !== r.ledger;
+        return `<div class="recon-row ${mismatch ? 'mismatch' : ''}"><span>${r.dealer}</span><span class="amount">$${r.ledger.toLocaleString()}${mismatch ? ` (Δ $${(r.processor-r.ledger).toLocaleString()})` : ''}</span></div>`;
+      }).join("")}
+    </div>
+    <div class="recon-summary">
+      <strong>${mismatches.length} of ${SETTLEMENT_DATA.length} dealer accounts don't reconcile</strong>, totaling $${totalDiff.toLocaleString()} in unexplained variance: ${mismatches.map(r => `${r.dealer} is $${Math.abs(r.processor-r.ledger).toLocaleString()} ${r.processor > r.ledger ? 'behind' : 'ahead of'} settlement`).join("; ")}. Worth investigating before month-end close.
+    </div>
+  `;
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-" + btn.dataset.view).classList.add("active");
+    document.getElementById("pageTitle").textContent = btn.textContent.trim();
+    document.getElementById("pagePath").textContent = "Payments Ops / " + btn.textContent.trim();
+  });
+});
+
+renderMetrics();
+renderTable();
+renderRecon();
+</script>
+</body>
+</html>
